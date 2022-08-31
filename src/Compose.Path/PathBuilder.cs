@@ -108,8 +108,8 @@ namespace Compose.Path
                 using var writer = new StreamWriter(fileStream);
                 writer.Write(content);
             }
-
-            throw new PathFileException($"{this} is a directory, it can not be written to.");
+            else
+                throw new PathFileException($"{this} is a directory, it can not be written to.");
         }
 
         public Stream OpenFilestream(FileMode mode = FileMode.Open, FileAccess access = FileAccess.ReadWrite)
