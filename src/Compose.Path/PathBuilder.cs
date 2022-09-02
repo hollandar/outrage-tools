@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -11,9 +12,16 @@ namespace Compose.Path
         private readonly string path;
         private static readonly FileMode[] createModes = new FileMode[] { FileMode.Create, FileMode.CreateNew, FileMode.OpenOrCreate };
 
-        public PathBuilder(string path)
+        private PathBuilder(string path)
         {
             this.path = NormalizePath(path);
+        }
+
+        public static PathBuilder CurrentDirectory => PathBuilder.From(Directory.GetCurrentDirectory());
+
+        public static PathBuilder From(string path)
+        {
+            return new PathBuilder(path);
         }
 
         public string Path => path;
@@ -46,7 +54,7 @@ namespace Compose.Path
             if (directoryName == null)
                 throw new PathParentException($"Getting the directory name for {this.Path} results in no directory.");
 
-            return new PathBuilder(directoryName);
+            return PathBuilder.From(directoryName);
         }
 
         public bool IsRelativeTo(PathBuilder path)
@@ -60,7 +68,7 @@ namespace Compose.Path
             if (relativePath == null)
                 throw new Exception($"{this.Path} can not be made relative to {path.Path}.");
 
-            return new PathBuilder(NormalizePath(relativePath));
+            return PathBuilder.From(NormalizePath(relativePath));
         }
 
         public string NormalizePath(string input)
@@ -138,7 +146,7 @@ namespace Compose.Path
             {
                 var entries = Directory.EnumerateFileSystemEntries(this, searchPattern, options ?? new EnumerationOptions());
                 foreach (var entry in entries)
-                    yield return new PathBuilder(NormalizePath(entry));
+                    yield return PathBuilder.From(NormalizePath(entry));
             }
             else
                 throw new PathDirectoryException($"{this} is not a directory, it can not be content listed.");
@@ -150,7 +158,7 @@ namespace Compose.Path
             {
                 var entries = Directory.EnumerateFiles(this, searchPattern, options ?? new EnumerationOptions());
                 foreach (var entry in entries)
-                    yield return new PathBuilder(NormalizePath(entry));
+                    yield return PathBuilder.From(NormalizePath(entry));
             }
             else
                 throw new PathDirectoryException($"{this} is not a directory, it can not be content listed.");
@@ -162,7 +170,7 @@ namespace Compose.Path
             {
                 var entries = Directory.EnumerateDirectories(this, searchPattern, options ?? new EnumerationOptions());
                 foreach (var entry in entries)
-                    yield return new PathBuilder(NormalizePath(entry));
+                    yield return PathBuilder.From(NormalizePath(entry));
             }
             else
                 throw new PathDirectoryException($"{this} is not a directory, it can not be content listed.");
@@ -180,14 +188,34 @@ namespace Compose.Path
             }
         }
 
-        public void Copy(PathBuilder to)
+        public PathBuilder CopyToFile(PathBuilder to)
         {
             if (IsFile)
             {
-                File.Copy(this, to);
+                var directory = to.GetDirectory();
+                directory.CreateDirectory();
+                File.Copy(this, to, true);
+
+                return to;
             }
             else
                 throw new PathFileException($"{this} is not a file.");
+        }
+
+        public PathBuilder CopyToFolder(PathBuilder to)
+        {
+            if (IsFile && !to.IsFile)
+            {
+                if (!to.IsDirectory)
+                    to.CreateDirectory();
+
+                var destination = to / this.Filename;
+                File.Copy(this, destination, true);
+
+                return destination;
+            }
+            else
+                throw new PathFileException($"{this} is not a file, to {to} is not a directory.");
         }
 
         public async Task CopyAsync(PathBuilder to)
@@ -205,19 +233,19 @@ namespace Compose.Path
 
         public static PathBuilder operator /(PathBuilder left, PathBuilder right)
         {
-            return new PathBuilder(System.IO.Path.Combine(left.path, right.path));
+            return PathBuilder.From(System.IO.Path.Combine(left.path, right.path));
         }
 
         public static PathBuilder operator /(PathBuilder left, String right)
         {
-            return new PathBuilder(System.IO.Path.Combine(left.path, right));
+            return PathBuilder.From(System.IO.Path.Combine(left.path, right));
         }
 
-        public static implicit operator PathBuilder?(string? right) => right == null ? null : new PathBuilder(right);
+        public static implicit operator PathBuilder?(string? right) => right == null ? null : PathBuilder.From(right);
 
         public static implicit operator string(PathBuilder right) => right.Path;
 
-        public static PathBuilder Root => new PathBuilder("/");
+        public static PathBuilder Root => PathBuilder.From("/");
 
         public override string ToString()
         {
@@ -228,12 +256,12 @@ namespace Compose.Path
         {
             if (rootPath == null)
             {
-                rootPath = new PathBuilder(Directory.GetCurrentDirectory());
+                rootPath = PathBuilder.From(CurrentDirectory);
             }
 
             if (!System.IO.Path.IsPathRooted(this.path))
             {
-                return new PathBuilder(System.IO.Path.Combine(rootPath, path));
+                return PathBuilder.From(System.IO.Path.Combine(rootPath, path));
             }
 
             return this;
@@ -246,5 +274,7 @@ namespace Compose.Path
                 file.Delete(true);
             }
         }
+
+        
     }
 }
