@@ -13,7 +13,7 @@ namespace Compose.Path
 
         public PathBuilder(string path)
         {
-            this.path = path;
+            this.path = NormalizePath(path);
         }
 
         public string Path => path;
@@ -49,13 +49,23 @@ namespace Compose.Path
             return new PathBuilder(directoryName);
         }
 
+        public bool IsRelativeTo(PathBuilder path)
+        {
+            return this.path.StartsWith(path.path, StringComparison.InvariantCultureIgnoreCase);
+        }
+
         public PathBuilder GetRelativeTo(PathBuilder path)
         {
             var relativePath = System.IO.Path.GetRelativePath(path.Path, this.Path);
             if (relativePath == null)
                 throw new Exception($"{this.Path} can not be made relative to {path.Path}.");
 
-            return new PathBuilder(relativePath);
+            return new PathBuilder(NormalizePath(relativePath));
+        }
+
+        public string NormalizePath(string input)
+        {
+            return input.Replace("\\", "/");
         }
 
         public async Task<string> ReadToEndAsync()
@@ -128,7 +138,7 @@ namespace Compose.Path
             {
                 var entries = Directory.EnumerateFileSystemEntries(this, searchPattern, options ?? new EnumerationOptions());
                 foreach (var entry in entries)
-                    yield return new PathBuilder(entry);
+                    yield return new PathBuilder(NormalizePath(entry));
             }
             else
                 throw new PathDirectoryException($"{this} is not a directory, it can not be content listed.");
@@ -140,7 +150,7 @@ namespace Compose.Path
             {
                 var entries = Directory.EnumerateFiles(this, searchPattern, options ?? new EnumerationOptions());
                 foreach (var entry in entries)
-                    yield return new PathBuilder(entry);
+                    yield return new PathBuilder(NormalizePath(entry));
             }
             else
                 throw new PathDirectoryException($"{this} is not a directory, it can not be content listed.");
@@ -152,7 +162,7 @@ namespace Compose.Path
             {
                 var entries = Directory.EnumerateDirectories(this, searchPattern, options ?? new EnumerationOptions());
                 foreach (var entry in entries)
-                    yield return new PathBuilder(entry);
+                    yield return new PathBuilder(NormalizePath(entry));
             }
             else
                 throw new PathDirectoryException($"{this} is not a directory, it can not be content listed.");
