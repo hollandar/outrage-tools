@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Compose.Path
@@ -11,6 +12,7 @@ namespace Compose.Path
     {
         private readonly string path;
         private static readonly FileMode[] createModes = new FileMode[] { FileMode.Create, FileMode.CreateNew, FileMode.OpenOrCreate };
+        private static Regex backtrackPathRegex = new Regex("(?:^|/)(?<folder>)/..", RegexOptions.Compiled);
 
         private PathBuilder(string path)
         {
@@ -73,7 +75,12 @@ namespace Compose.Path
 
         public string NormalizePath(string input)
         {
-            return input.Replace("\\", "/");
+            var outputPath = input.Replace("\\", "/");
+            if (outputPath.Contains("./"))
+                outputPath = outputPath.Replace("./", String.Empty);
+            outputPath = backtrackPathRegex.Replace(outputPath, (match) => match.Groups["folder"].Value);
+
+            return outputPath;
         }
 
         public async Task<string> ReadToEndAsync()
@@ -231,13 +238,15 @@ namespace Compose.Path
         }
 
 
-        public static PathBuilder operator /(PathBuilder left, PathBuilder right)
+        public static PathBuilder operator /(PathBuilder left, PathBuilder? right)
         {
+            if (right == null) return left;
             return PathBuilder.From(System.IO.Path.Combine(left.path, right.path));
         }
 
-        public static PathBuilder operator /(PathBuilder left, String right)
+        public static PathBuilder operator /(PathBuilder left, String? right)
         {
+            if (right == null) return left;
             return PathBuilder.From(System.IO.Path.Combine(left.path, right));
         }
 
@@ -250,6 +259,22 @@ namespace Compose.Path
         public override string ToString()
         {
             return this.path;
+        }
+
+        public override bool Equals(object? obj)
+        {
+            var otherPath = obj as PathBuilder;
+            if (otherPath != null)
+            {
+                return otherPath.path == path;
+            }
+
+            return base.Equals(obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return path.GetHashCode();
         }
 
         public PathBuilder CombineIfRelative(PathBuilder? rootPath = null)
