@@ -147,6 +147,19 @@ namespace Compose.Path
             throw new PathFileException($"{this} exists and is not a file, so can not be read or written.");
         }
 
+        public DateTimeOffset GetLastModified()
+        {
+            if (this.IsFile)
+            {
+                return File.GetLastWriteTimeUtc(this.path);
+            }
+            if (this.IsDirectory)
+            {
+                return Directory.GetLastWriteTimeUtc(this.path);
+            }
+            throw new ArgumentException($"{this.path} does not exist.");
+        }
+
         public IEnumerable<PathBuilder> ListContents(string searchPattern = "*", EnumerationOptions? options = null)
         {
             if (IsDirectory)
