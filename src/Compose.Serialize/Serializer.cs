@@ -4,11 +4,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using YamlDotNet.Serialization.NodeTypeResolvers;
 
 namespace Compose.Serialize
 {
@@ -30,6 +32,21 @@ namespace Compose.Serialize
     }
     public static class Serializer
     {
+        static string[] extensions = new string[] { "", ".json", ".yaml" };
+        public static TType? DeserializeExt<TType>(PathBuilder path, SerializerOptions? options = null) where TType : new()
+        {
+            foreach (var extension in extensions)
+            {
+                var extFile = path.WithExtension(extension);
+                if (extFile.IsFile)
+                {
+                    return Deserialize<TType>(extFile, options);
+                }
+            }
+
+            throw new FileNotFoundException($"{path} does not exist, extensions were also tried.");
+        }
+
         public static TType? Deserialize<TType>(PathBuilder path, SerializerOptions? options = null) where TType : new()
         {
             return (TType?)Deserialize(typeof(TType?), path, options);

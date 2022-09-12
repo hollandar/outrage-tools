@@ -9,7 +9,7 @@ namespace Compose.Path
 {
     public class Executable
     {
-        static string[] extensions = new string[] { "", ".sh", ".ps1", ".cmd", ".exe", ".bat" };
+        static string[] extensions = new string[] { ".sh", ".ps1", ".cmd", ".exe", ".bat", "" };
 
         PathBuilder? executable;
         public Executable(PathBuilder name)
@@ -20,12 +20,19 @@ namespace Compose.Path
                 var pathEnvironment = Environment.GetEnvironmentVariable("PATH") ?? String.Empty;
                 var windows = OperatingSystem.IsWindows();
                 var pathEntries = pathEnvironment.Split(windows ? ';' : ':');
+                var execNames = extensions.Select(ext => $"{name}{ext}");
 
                 foreach (var pathEntry in pathEntries)
                 {
-                    var execNames = extensions.Select(ext => $"{name}{ext}");
-                    executable = execNames.Select(execName => PathBuilder.From(pathEntry) / execName).Where(path => path.IsFile).FirstOrDefault();
-                    if (executable != null) break;
+                    foreach (var exeName in execNames)
+                    {
+                        var execPath = PathBuilder.From(pathEntry) / exeName;
+                        if (execPath.IsFile)
+                        {
+                            executable = execPath;
+                            break;
+                        }    
+                    }
                 }
 
             }

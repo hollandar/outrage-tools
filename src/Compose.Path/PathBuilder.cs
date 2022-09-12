@@ -250,6 +250,11 @@ namespace Compose.Path
                 throw new PathFileException($"{this} is not a file.");
         }
 
+        public PathBuilder WithExtension(string extension)
+        {
+            return PathBuilder.From(this.path + extension);
+        }
+
 
         public static PathBuilder operator /(PathBuilder left, PathBuilder? right)
         {
