@@ -44,6 +44,11 @@ namespace Compose.Path
                 Directory.CreateDirectory(this.path);
         }
 
+        public PathBuilder Append(string appended)
+        {
+            return PathBuilder.From(this.Path + appended);
+        }
+
         public void EnsureExists()
         {
             if (!this.IsFile && !this.IsDirectory)
