@@ -12,6 +12,8 @@ namespace Compose.Path
         static string[] extensions = new string[] { ".sh", ".ps1", ".cmd", ".exe", ".bat", "" };
 
         PathBuilder? executable;
+        string arguments = string.Empty;
+
         public Executable(PathBuilder name)
         {
             executable = PathBuilder.From(name);
@@ -36,6 +38,7 @@ namespace Compose.Path
                 }
 
             }
+
         }
 
         public bool Exists => executable != null;
@@ -47,11 +50,24 @@ namespace Compose.Path
 
             var pInfo = new ProcessStartInfo();
             pInfo.UseShellExecute = false;
-            pInfo.FileName = executable;
+            if (executable.Extension == ".ps1")
+            {
+                var pwsh = new Executable("pwsh"!);
+                if (!pwsh.Exists) {
+                    throw new Exception("PowerShell (pwsh) is not available in the path.");
+                }
+
+                pInfo.FileName = pwsh.Path!;
+                pInfo.Arguments = $"-command {this.Path} ";
+            }
+            else {
+                pInfo.FileName = executable;
+            }
+
 
             pInfo.WorkingDirectory = workingDirectory ?? PathBuilder.CurrentDirectory;
             if (!String.IsNullOrWhiteSpace(arguments))
-                pInfo.Arguments = arguments;
+                pInfo.Arguments += arguments;
             Process? p = System.Diagnostics.Process.Start(pInfo);
             if (p != null)
                 await p.WaitForExitAsync();
